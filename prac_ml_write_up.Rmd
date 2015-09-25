@@ -1,0 +1,140 @@
+---
+title: "Practical Machine Learning Project Write up"
+output: html_document
+---
+This document is available on RPub at http://rpubs.com/AndyPaulCox/111859
+
+##Assignment Description
+
+###Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: [link](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+###Data 
+The training data for this project are available here: 
+[link](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+
+The test data are available here: 
+[link](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+The data for this project come from this source: [link](http://groupware.les.inf.puc-rio.br/har). If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+###What you should submit
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+1. Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
+
+2. You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
+
+###Reproducibility 
+Due to security concerns with the exchange of R code, your code will not be run during the evaluation by your classmates. Please be sure that if they download the repo, they will be able to view the compiled HTML version of your analysis. 
+
+#Analysis
+
+###Setting up workspace and read in the data
+```{r}
+#Clear the workspace
+rm(list = ls())
+
+#Load required libraries
+library(rpart) 
+library(rpart.plot)
+library(RColorBrewer) 
+library(rattle)
+library(caret)
+library(randomForest)
+setwd("/Users/AndyC/Dropbox/rdata/cousera/prac_mach_learning")
+#Set seed
+set.seed(998)
+#Read in Datasets convert  #DIV/0! to NA values
+train1<- read.delim(file="pml_training.csv", header=TRUE,sep=",", na.strings=c("NA","#DIV/0!",""))
+test1 <- read.delim(file="pml_testing.csv",header=TRUE,sep=",", na.strings=c("NA","#DIV/0!",""))
+
+```
+
+Next conduct a quick inspection of the data
+```{r}
+summary(train1)
+str(train1)
+```
+###Clean up the Data
+Remove the first column from each dataset as it is not needed
+```{r}
+dim(train1)
+dim(test1)
+train1<- train1[,-1]
+test1<- test1[,-1]
+```
+
+From inspection a number of the variables have a large amount of NA values
+remove variables wiht >60% NA values
+
+```{r}
+sel<-numeric()#Create a vector to store the high proportion NA column indexes
+for(i in 1:ncol(train1)) { #for every column in the training dataset  
+  if( sum( is.na( train1[, i] ) ) /nrow(train1) >= 0.6 ) sel <- c(sel,i )#If for col i  NAs > 60% of total observations note the column index  
+} 
+length(sel)#100 variables wiht >=60% NA values
+train2<-train1[,-sel]#Remove the columns wiht high proportion of NA results
+test2<-test1[,-sel]
+```
+Look for data wiht near zero variance incicating it will have little exaplantory power
+
+```{r}
+#Look for variaubles wiht Near Zero Variance
+dataNZV <- nearZeroVar(train2, saveMetrics=FALSE)
+#Do we really want to remove the flagged NZV columns
+table(train2[,dataNZV])
+table(train2[,dataNZV])[2]/length(train2[,dataNZV])
+```
+Only one variable is indicated as having near zero variance lets look more closely
+Only 2% of variables are 'yes'  rest are 'no' I guess we will leave it in as we are using Random Forest
+
+Next partition training data inot our testing a training
+
+```{r}
+#Partition in to training and test dataset
+trN <- createDataPartition(y=train2$classe, p=0.6, list=FALSE) 
+train3 <- train2[trN, ]; 
+test3 <- train2[-trN, ] 
+dim(train3)
+dim(test3)
+```
+Next train a Random Forest Model on the training data
+```{r}
+#Use RF to model predictions
+m1 <- randomForest(classe ~. , data=train3)
+```
+Make predictions on the testing data and produce the confusion matrix
+
+```{r}
+preds <- predict(m1, test3, type = "class")
+confusionMatrix(preds, test3$classe)
+```
+Over 99% accracy and the confusion matrix looks good
+
+Next make predictions for the 20 case test set. But forest we need to make sure that the test and the traingin data we sued are exaclt the same classes wiht the same number of factor levels otherwise it iwll not work
+
+```{r}
+# Coerce data into same class for RF
+
+for (i in 1:ncol(test2) ) { 
+  
+  if( names(train2[i])==names(test2[i]) ) { 
+    class(test2[,i]) <- class(train2[,i]) 
+    levels(test2[,i]) <- levels(train2[,i])
+  }      
+} 
+```
+Next make the predctions
+```{r}
+#Create scored file to submit for evaluation
+preds2 <- predict(m1, test2, type = "class")
+```
+Now create the files for submission of predictions to satisfy assignment requirments
+```{r}
+for(i in 1:length(preds2) ){     
+  filename = paste0("problem_id_",i,".txt")
+  write.table(preds2[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)   
+} 
+```
