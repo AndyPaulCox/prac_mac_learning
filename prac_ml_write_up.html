@@ -630,6 +630,16 @@ dim(train3)</code></pre>
 <pre class="r"><code>dim(test3)</code></pre>
 <pre><code>## [1] 7846   59</code></pre>
 <p>Next train a Random Forest Model on the training data</p>
+<p>Although here is the code for cross validation, I have commented it our as its pretty computationally intensive. The OOB error for this was 0.996</p>
+<pre class="r"><code>#This is the code for cross validation and obtining oob error
+#But commented out at its computationally intensive
+# mod&lt;-train(classe~.,data=train33,method=&quot;rf&quot;,
+#            trControl=trainControl(method=&quot;cv&quot;,number=5),
+#            prox=TRUE,allowParallel=TRUE)
+# print(mod$finalModel)
+# preds &lt;- predict.train(object=mod, newdata=test2)
+#OOB error cross validation was 0.997 </code></pre>
+<p>So for demo purposes here we will just use a hold out sample approach</p>
 <pre class="r"><code>#Use RF to model predictions
 m1 &lt;- randomForest(classe ~. , data=train3)</code></pre>
 <p>Make predictions on the testing data and produce the confusion matrix</p>

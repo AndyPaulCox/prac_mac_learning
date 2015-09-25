@@ -101,6 +101,20 @@ dim(train3)
 dim(test3)
 ```
 Next train a Random Forest Model on the training data
+
+Although here is the code for cross validation, I have commented it our as its pretty computationally intensive.
+The OOB error for this was 0.996
+```{r}
+#This is the code for cross validation and obtining oob error
+#But commented out at its computationally intensive
+# mod<-train(classe~.,data=train33,method="rf",
+#            trControl=trainControl(method="cv",number=5),
+#            prox=TRUE,allowParallel=TRUE)
+# print(mod$finalModel)
+# preds <- predict.train(object=mod, newdata=test2)
+#OOB error cross validation was 0.997 
+```
+So for demo purposes here we will just use a hold out sample approach
 ```{r}
 #Use RF to model predictions
 m1 <- randomForest(classe ~. , data=train3)
